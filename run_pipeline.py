@@ -1,33 +1,59 @@
-# Space debris risk pipeline
+"""
+Space Debris Risk Pipeline
+
+Tracks ISS and GOES 15 satellites, computes distances, 
+and detects potential close approaches (conjunctions).
+"""
+
+import logging
+from typing import Dict, Tuple, List
 
 from src.tle_loader import load_tle_from_celestrak
 from src.orbit_simulator import compute_positions
 from src.collision_model import compute_pairwise_distance, detect_conjunction
 from src.visualizer import plot_distance
 
-def main():
-    print("[INFO] Starting the space debris risk pipeline...")
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
-    # Load satellite TLE data
-    sats = load_tle_from_celestrak()
-    iss = sats.get('ISS (ZARYA)')
-    goes = sats.get('GOES 15')
+def main() -> None:
+    """
+    Main function for the space debris risk pipeline.
+    Loads TLE data, computes satellite positions, detects
+    risky events, and plots distances over time.
+    """
+    logging.info("Starting the space debris risk pipeline...")
 
-    if iss is None or goes is None:
-        print("[ERROR] One or both satellites not found.")
-        return
+    try:
+        # Load satellite TLE data
+        sats: Dict[str, object] = load_tle_from_celestrak()
+        iss = sats.get('ISS (ZARYA)')
+        goes = sats.get('GOES 15')
 
-    # Compute satellite positions
-    pos1, t = compute_positions(iss)
-    pos2, _ = compute_positions(goes)
+        if iss is None or goes is None:
+            logging.error("One or both satellites not found.")
+            return
 
-    # Compute distances and detect risky events
-    dist = compute_pairwise_distance(pos1, pos2)
-    risky = detect_conjunction(dist)
+        # Compute satellite positions
+        pos1, t = compute_positions(iss)
+        pos2, _ = compute_positions(goes)
 
-    # Output results
-    print(f"[RESULT] Risky events: {len(risky)}")
-    plot_distance(range(len(dist)), dist, 'ISS', 'GOES 15')
+        # Compute pairwise distances and detect risky events
+        dist: List[float] = compute_pairwise_distance(pos1, pos2)
+        risky: List[int] = detect_conjunction(dist)
+
+        # Output results
+        logging.info("Number of risky events detected: %d", len(risky))
+
+        # Plot distances over time
+        plot_distance(range(len(dist)), dist, 'ISS', 'GOES 15')
+
+    except Exception as e:
+        logging.exception("An unexpected error occurred: %s", e)
 
 if __name__ == "__main__":
     main()
+
